@@ -1,4 +1,4 @@
-#!/usr/bin/python
+ㅍ#!/usr/bin/python
 #
 #Bertrone Matteo - Polytechnic of Turin
 #November 2015
@@ -41,6 +41,7 @@ def help():
     exit()
 
 #arguments
+#이더넷 번호를 지정한다.
 interface="eth0"
 
 if len(argv) == 2:
@@ -61,7 +62,7 @@ if len(argv) > 3:
 print ("binding socket to '%s'" % interface)
 
 # initialize BPF - load source code from http-parse-simple.c
-bpf = BPF(src_file = "http-parse-simple.c",debug = 0)
+bpf = BPF(src_file = "http-parse-simple.c", debug = 0)
 
 #load eBPF program http_filter of type SOCKET_FILTER into the kernel eBPF vm
 #more info about eBPF program types
@@ -70,6 +71,7 @@ function_http_filter = bpf.load_func("http_filter", BPF.SOCKET_FILTER)
 
 #create raw socket, bind it to interface
 #attach bpf program to socket created
+#특정 interface에 붙이기 때문에 이래서 중요하다.
 BPF.attach_raw_socket(function_http_filter, interface)
 
 #get file descriptor of the socket previously created inside BPF.attach_raw_socket

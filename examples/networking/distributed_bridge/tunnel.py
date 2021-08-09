@@ -19,6 +19,7 @@ host_id = int(argv[1])
 b = BPF(src_file="tunnel.c")
 ingress_fn = b.load_func("handle_ingress", BPF.SCHED_CLS)
 egress_fn = b.load_func("handle_egress", BPF.SCHED_CLS)
+#BPF_HASH MACRO를 이용하여 선언되어 있다.
 mac2host = b.get_table("mac2host")
 vni2if = b.get_table("vni2if")
 conf = b.get_table("conf")
@@ -33,6 +34,7 @@ mcast = IPAddress("239.1.1.1")
 ifc_gc = []
 
 def run():
+    #ipdb? IPRoute?
     ipdb.routes.add({"dst": "224.0.0.0/4", "oif": ifc.index}).commit()
     with ipdb.create(ifname="vxlan0", kind="vxlan", vxlan_id=0,
                      vxlan_link=ifc, vxlan_port=4789,
@@ -44,6 +46,7 @@ def run():
 
     conf[c_int(1)] = c_int(vx.index)
 
+    #tracing을 해줄 함수를 붙여넣는다.
     ipr.tc("add", "ingress", vx.index, "ffff:")
     ipr.tc("add-filter", "bpf", vx.index, ":1", fd=ingress_fn.fd,
            name=ingress_fn.name, parent="ffff:", action="drop", classid=1)
@@ -52,11 +55,16 @@ def run():
         vni = 10000 + i
         with ipdb.create(ifname="br%d" % i, kind="bridge") as br:
             v = ipdb.create(ifname="dummy%d" % i, kind="dummy").up().commit()
+            #hash map에서 데이터를 가지고 오나?
             mcast_key = mac2host.Key(0xFFFFFFFFFFFF, v.index, 0)
             mcast_leaf = mac2host.Leaf(vni, mcast.value, 0, 0)
             mac2host[mcast_key] = mcast_leaf
-
+            #tracing을 해줄 함수를 붙여넣는다.
             ipr.tc("add", "sfq", v.index, "1:")
+            # With the method you can add, delete or modify qdiscs, classes and filters
+            # command -- add or delete qdisc, class, filter.
+            # kind -- a string identifier -- "sfq", "htb", "u32" and so on.
+            # handle -- integer or string
             ipr.tc("add-filter", "bpf", v.index, ":1", fd=egress_fn.fd,
                    name=egress_fn.name, parent="1:", action="drop", classid=1)
             br.add_port(v)

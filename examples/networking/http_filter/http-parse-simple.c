@@ -13,6 +13,7 @@
   return  0 -> DROP the packet
   return -1 -> KEEP the packet and return it to user space (userspace can read it from the socket_fd )
 */
+//__sk_buff는 packet을 의미한다.
 int http_filter(struct __sk_buff *skb) {
 
 	u8 *cursor = 0;
@@ -22,7 +23,8 @@ int http_filter(struct __sk_buff *skb) {
 	if (!(ethernet->type == 0x0800)) {
 		goto DROP;
 	}
-
+	//ip변수를 얻어온다.
+	//주소를 이동하면서 원하는 데이터를 뽑아온다.
 	struct ip_t *ip = cursor_advance(cursor, sizeof(*ip));
 	//filter TCP packets (ip next protocol = 0x06)
 	if (ip->nextp != IP_TCP) {

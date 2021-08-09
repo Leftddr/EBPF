@@ -12,6 +12,7 @@ struct ifindex_leaf_t {
 };
 
 // redirect based on mac -> out_ifindex (auto-learning)
+// key, data structure, size
 BPF_HASH(egress, int, struct ifindex_leaf_t, 4096);
 
 // redirect based on mac -> out_ifindex (config-driven)

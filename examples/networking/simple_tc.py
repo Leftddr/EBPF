@@ -1,7 +1,17 @@
 #!/usr/bin/python
 # Copyright (c) PLUMgrid, Inc.
 # Licensed under the Apache License, Version 2.0 (the "License")
-
+'''
+  IPRoute.tc : 
+    트래픽 컨트롤을 위한 "Swiss knife"를 의미한다.
+  IPRoute.tc('command', 'kind', 'handle') 형태를 가진다.
+  'handle' :
+    1:0    ->    0x10000
+    1:1    ->    0x10001
+    ff:0   ->   0xff0000
+    ffff:1 -> 0xffff0001
+  앞에것은 그대로 가져다 쓰고, 뒤에것은 bit로 변환하여 사용한다.
+'''
 from bcc import BPF
 from pyroute2 import IPRoute
 

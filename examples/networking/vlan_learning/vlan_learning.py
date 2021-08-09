@@ -17,13 +17,15 @@ num_clients = 3
 num_vlans = 16
 
 # load the bpf program
+# 가상 네트워크 통신을 만들고, 함수를 등록하여 tracing하는 코드이다.
+# interfaces -> ethernet, lo -> up, lo => localhost를 의미한다.
 b = BPF(src_file="vlan_learning.c", debug=0)
 phys_fn = b.load_func("handle_phys2virt", BPF.SCHED_CLS)
 virt_fn = b.load_func("handle_virt2phys", BPF.SCHED_CLS)
 
 ingress = b.get_table("ingress")
 egress = b.get_table("egress")
-
+#virtual lan을 시뮬레이션하는 코드이다.
 class VlanSimulation(Simulation):
     def __init__(self, ipdb):
         super(VlanSimulation, self).__init__(ipdb)
@@ -34,16 +36,19 @@ class VlanSimulation(Simulation):
             httpmod = ("SimpleHTTPServer" if sys.version_info[0] < 3
                        else "http.server")
             cmd = ["python", "-m", httpmod, "80"]
+            # worker%d는 Linux NameSpace를 의미한다.
             self._create_ns("worker%d" % i, cmd=cmd, fn=virt_fn, action="drop",
                             ipaddr="172.16.1.5/24")
 
         # simulate a physical eth vlan trunk
+        # 호스트와 컨테이너를 연결할 가상의 ethernet을 만든다.
         with self.ipdb.create(ifname="eth0a", kind="veth", peer="eth0b") as v:
             v.up()
         self.ipdb.interfaces.eth0b.up().commit()
 
         # eth0a will be hooked to clients with vlan interfaces
         # add the bpf program to eth0b for demuxing phys2virt packets
+        # eth0a -> eth0b
         v = self.ipdb.interfaces["eth0b"]
         ipr.tc("add", "ingress", v["index"], "ffff:")
         ipr.tc("add-filter", "bpf", v["index"], ":1", fd=phys_fn.fd,
@@ -56,11 +61,14 @@ class VlanSimulation(Simulation):
 
         # these are simulations of physical clients
         for i in range(0, num_clients):
+            #파이썬도 비트 사용이 가능하구나...
             macaddr = ("02:00:00:%.2x:%.2x:%.2x" %
                        ((i >> 16) & 0xff, (i >> 8) & 0xff, i & 0xff))
 
             # assign this client to the given worker
+            # 해당 NameSpace의 interface의 index값을 가져온다.
             idx = self.ipdb.interfaces["worker%da" % i]["index"]
+            #u64형태로 key를 변환해야 데이터 베이스를 사용할 수 있다.
             mac = int(macaddr.replace(":", ""), 16)
             ingress[ingress.Key(mac)] = ingress.Leaf(idx, 0, 0, 0, 0)
 
